@@ -1,21 +1,58 @@
 # project-dsp
 
-> A Vue.js project
+##       项目总结        
+###     1.技术选型，
+        （1）主要框架选用vue，因为这个项目主要功能是后台管理类，整体体积较小，而且vue借鉴了angular、react等框架的亮点，短小精悍,而且学习难度较低，容易上手。vue的全家桶也是更加为项目的开发提供了便捷，如vuex,webpack-cli,vue-router，更轻量，更适合     
+        （2）数据管理使用vueX，相当于一个大的数据容器，用来储存全局的数据，在任意组件内部都可以进行访问、操作，和vue搭配更合适     
+        （3）数据请求，使用axios,axios简单易用，api接近于jquery，比原生的fetch之类的简单,而且通用性好，能在node和浏览器中使用，api一致        
+        （4）语法使用ECMA script6，es6提供了很多新的编程语法，更高效，稳定性更高        
+        （5）脚手架使用vue的脚手架 vue init webpack        
+        (6)后台服务，因为是开发阶段，为了与后台开发保持同步，需要使用mockjs来自行模拟接口返回数据，可以在编程过程中避免出现因为没有后台数据耽误项目的开发上线
+###     2.路由搭建，路由拦截实现和权限接口判断        
+        （1）路由搭建     
+            路由搭建主要依赖vue-router实现，根据项目的需求，一级路由主要分为管理员login登录页和系统的index主页,主页下有子路由，分别是新建广告、首页概览、广告管理、工具箱等，在新建广告下又搭建了3级子路由，分为广告单元，广告单元和广告创意，通过这样搭建路由，可以既满足项目的需求，也可以更好的提升用户体验，让客户在任意页面下随意跳转      
+        （2）路由拦截     
+            路由拦截是利用vue-router的beforeEach函数，在路由跳转时通过判断path或者name字段，进行操作      
+        （3）权限接口判断       
+            权限接口在项目中主要是为了判断在跳转路由，页面操作时用户是否有管理员权限，具体实现通过在路由拦截阶段判断浏览器的token字段，是否符合权限标准，（token是登录成功后添加到浏览器的localstorge中去）      
+###     3.数据请求以及封装全局请求接口
+            (1)数据请求主要使用axios进行发送http请求，为了更高效的结合vue进行开发，在项目中通过axios封装了简单的请求方式，并且通过Object.defineProperty的方法将封装好的方法挂载到vue的实例上，调用方式为this.$http             
+            (2)以及数据的拦截，首先，通过axios的create方法对默认的请求域名进行配置，然后通过axios的interceptors上的request方法和response方法进行数据的拦截，目的是通过拦截使数据更加单纯，按需返回，把一些不必要的属性过滤掉，并且在request中对所有的请求添加了token字段。便于项目中的权限管理       
 
-## Build Setup
+###     4.核心功能和技术难点     
+        核心功能大致有以下几点：        
+        （1）可视化图表        
+                在首页路由中，用户可以通过选择一个日期区间，动态的获取到对应的数据，并且通过echarts图表在页面上展示，这个功能难点在于需要获取两个日期对象的区间，自行转换类型，判断区间长度，向后台发起请求，在获得返回值以后，对图表的x轴和数据进行替换更新，逻辑性较强，需要用到一些基础性的数据类型操作       
+        （2）广告添加创意块      
+                在添加广告创意时，点击添加按钮，首先会有一个弹框，提供单图和多图供用户选择，然后跳转到tabs，可以进行图片上传等数据的提交功能，难点主要有逻辑性较强，需要进行判断用户的选择操作和长传图片是后台对图片的接受，因为发送http请求时，图片会以二进制流的形式进行传送，所以需要在后台自己配置接受图片的接口      
+        （3）广告单元模块       
+                这一模块主要是对后台返回的数据进行渲染到table表格当中，对数据进行展示操作，用户也可以对数据进行修改编辑      
+###     5.数据管理
+        数据管理主要是使用vuex进行管理的，vueX就像一个大的数据容器，把项目中需要的数据存放到一起进行管理，好处就是在项目的任意组件内，都可以对数据进行访问、操作，更容易实现数据驱动视图的目的，而且Vue + Vuex 会更简洁，也不需要考虑性能问题        
+###     6.遇到的困难，以及解决方式
+        在首页获取日期区间时时，想到通过开始日期和结束日期获得一个只包含年月的数组，用来替换图标的x轴，作出以下操作
+         getxAxisData(start,end){
+            let res=[];
+           let startnum=start.getFullYear()*12+start.getMonth()*1+1
+            let endnum=end.getFullYear()*12+end.getMonth()*1+1
+           for(var i=startnum;i<=endnum;i++){
+                res.push(`${Math.floor(i/12)}/${i%12==0?12:i%12}`)
+            }
+            this.$http.post('/getechartsdata',{len:res.length}).then(response=>{
+                 this.myChart.setOption({
+                    xAxis: {
+                        data:res
+                    },
+                    series: [{
+                        // 根据名字对应到相应的系列
+                        type:'line',
+                        data: response
+                    }]
+                })
+         })
+      }
+      在新建广告页，添加创意时开始使用的element ui的tabs组件，发现自己不论是样式还是效果的实现都无法更好的操作这个组件来满足项目需求，所以针对性的封装了一个类似的组件，通过组件插槽、自定义函数触发父级事件，动态根据数据进行视图渲染等方式实现
 
-``` bash
-# install dependencies
-npm install
 
-# serve with hot reload at localhost:8080
-npm run dev
 
-# build for production with minification
-npm run build
-
-# build for production and view the bundle analyzer report
-npm run build --report
 ```
-
-For a detailed explanation on how things work, check out the [guide](http://vuejs-templates.github.io/webpack/) and [docs for vue-loader](http://vuejs.github.io/vue-loader).
